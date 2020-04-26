@@ -20,8 +20,9 @@ typedef long long LL;
 #define range(i, s, t)  for (int (i) = s; (i) <= (int)t; (i)++)
 const int INF = 0x3f3f3f3f;
 const long double EPS = 1e-6;
+const int N = 1010;
 long long qread() {
-	char c;
+	char c = getchar();
 	int neg = 1;
 	long long val = 0;
 	while (c != '-' && !isdigit(c)) c = getchar();
@@ -33,41 +34,92 @@ struct Point {
 	int x, y;
 	Point(int x = 0, int y = 0) : x(x), y(y) {}
 };
-#define sqr(x) x * x
+#define sqr(x) (x) * (x)
 double dist(Point a, Point b) {
-	return sqrt(sqr(a.x - b.x) + sqr(a.y - b.y));
+	return /*sqrt(*/sqr(a.x - b.x) + sqr(a.y - b.y)/*)*/;
 }
 int n, k;
 vector <Point> a;
-vector < vector <int> > G;
-vector <int> node;
-vector <int> deg;
-set < pair <int, int> > e;
-bool check(int x) {
-	e.clear();
-	deg.clear(); deg.resize(n);
-	G.clear(); G.resize(n);
-	rep(i, n) range(j, i, n - 1) if (dist(a[i], a[j]) >= x) {
-		e.insert(mp(i, j)); e.insert(mp(j, i));
-		G[i].pb(j); G[j].pb(i);
-		deg[i]++;
-		deg[j]++;
+int deg[N];
+vector <int> G[N];
+bool deleted[N], ans[N];
+void remove(int x) {
+	//cerr << "RM " << x << endl;
+	deleted[x] = true;
+	for (auto v:G[x]) {
+		deg[v]--;
+		deg[x]--;
 	}
-	
+}
+void recover(int x) {
+	///cerr << "RECOVER " << x << endl;
+	deleted[x] = false;
+	for (auto v:G[x]) {
+		deg[v]++;
+		deg[x]++;
+	}
+}
+bool solve(int k) {
+//	if (k < 0) return false;
+	int leaf = -1, x = -1;
+	rep(i, n) if (!deleted[i] && deg[i] == 1) {leaf = i; break;}
+//	cerr << "LEAF = " << leaf << endl;
+	if (leaf != -1) {
+		auto it = G[leaf].begin();
+		for (; it != G[leaf].end(); it++) {
+			if (!deleted[*it]) break;
+		}
+		int v = *it;
+		remove(v);
+		if (k > 0 && solve(k - 1)) return true;
+		recover(v);
+		return false;
+	}
+	int maxdeg = 0;
+	rep(i, n) if (!deleted[i] && deg[i] > maxdeg) {
+		maxdeg = deg[i];
+		x = i;
+	}
+	if (maxdeg == 0) return true; if (k == 0) return false;
+	remove(x);
+	if (solve(k - 1)) return true;
+	recover(x);
+	if (maxdeg > 1 && maxdeg <= k) {
+		vector <int> ne;
+		for (auto v:G[x]) if (!deleted[v]) ne.pb(v);
+		for (auto i:ne) remove(i);
+		if (solve(k - maxdeg)) return true;
+		for (auto i:ne) recover(i);
+	} 
+	return false;
+}
+bool check(int x) {
+//	cerr << "CALLING CHECK " << x << endl;
+	rep(i, n) G[i].clear();
+	memset(deg, 0, sizeof(deg));
+	rep(i, n) rep(j, n) if (dist(a[i], a[j]) > x) {G[i].pb(j);deg[i]++;}
+	memset(deleted, 0, sizeof(deleted));
+	return solve(k);
 }
 int main() {
 	n = qread(); k = qread();
 	rep(i, n) {
 		int x = qread(), y = qread();
 		a.pb(Point(x, y));
-		node.pb(i);
 	}
-	int L = 0, R = 64001;
+	int L = -1, R = 2100000000;
 	while (L + 1 < R) {
 		int mid = (L + R) >> 1;
-		if (check(mid)) R = mid;
+		if (check(mid)) {rep(i, n) ans[i] = deleted[i]; R = mid;}
 		else L = mid;
 	}
-	rep(i, k) cout << node[i] + 1 << ' '; cout << endl;
+	int rem = k;
+	rep(i, n) if (ans[i]) rem--;
+	rep(i, n) if (rem > 0 && !ans[i]) {
+		ans[i] = true;
+		rem--;
+	}
+	// rep(i, n) cerr << ans[i] << ' '; cerr << endl;
+	rep(i, n) if (ans[i]) cout << i + 1 << ' '; cout << endl;
 	return 0;
 }
